@@ -53,7 +53,7 @@ dt = 5. * dt
 #  Note that the time step is a bit conservative so it may be useful to see
 #  if the time step can be slightly increased. This will speed up the
 #  calculation.
-# 
+#
 
 #  Boundary conditions for the lid driven cavity test case
 U_wall_top = -1
@@ -66,6 +66,16 @@ V_wall_left = 0
 V_wall_right = 0
 
 # TODO: Set up the sparse incidence matrix tE21. Use the orientations described
+def get_idx_source(N):
+    return N**2 + 4*N
+
+def get_idx_edge(N):
+    return 2 * N * (N + 1)
+
+def get_vertex_edge(N):
+    return (N + 1)**2 + 4 * (N + 1)
+
+
 # in the assignment.
 # Make sure to use sparse matrices to avoid memory problems
 
