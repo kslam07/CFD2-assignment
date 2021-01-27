@@ -120,7 +120,7 @@ def setup_E10(N):
             i += 1; j += 1
 
     # add first side edge
-    cols.extend([jb1, 0])
+    cols.extend([0, jb1])
     rows.extend([0, 0])
 
     i = N; jb1 += N
@@ -160,7 +160,7 @@ def tE21(N):
         rows.extend([i, i, i, i])
         data.extend([-1, 1, -1, 1])
     # boundary points
-    
+
     # bottom boundary points
     for j in range(N):
         i+=1
@@ -173,7 +173,7 @@ def tE21(N):
             cols.extend([j1+j])
             rows.extend([i])
             data.extend([1])
-            
+
     # top row
     for j in range(N):
         i+=1
@@ -186,7 +186,7 @@ def tE21(N):
             cols.extend([j1+j])
             rows.extend([i])
             data.extend([-1])
-            
+
     # left
     for j in range(N):
         i+=1
@@ -199,7 +199,7 @@ def tE21(N):
             cols.extend([j1+j*(N+1)])
             rows.extend([i])
             data.extend([1])
-            
+
     # left
     for j in range(N):
         i+=1
@@ -212,8 +212,8 @@ def tE21(N):
             cols.extend([j1+j*(N+1)])
             rows.extend([i])
             data.extend([-1])
-    
-    
+
+
     # x=sparse.coo_matrix((data,(rows,cols)),shape=(21,36)).toarray()
     return (sparse.coo_matrix((data,(rows,cols)),shape=(N**2+4*N,2*(N+1)*N)))
 
