@@ -146,10 +146,6 @@ def setup_E21(N):
 def tE21(N):
     cols=[]
     rows=[]
-    j1 = 0
-    j2 = 0
-    j3 = 0
-    j4 = 0
     data=[]
     #inner cells
     for i in range(N**2):
@@ -169,57 +165,57 @@ def tE21(N):
     for j in range(N):
         i+=1
         if j==0:
-            j1, j2 = (N+1)*N,4*(N+1*N)
-            cols.extend([j1, j2])
-            rows.extend([i,i])
-            data.extend([1,-1])
+            j1 = (N+1)*N
+            cols.extend([j1])
+            rows.extend([i])
+            data.extend([1])
         else:
-            cols.extend([j1+j, j2+j])
-            rows.extend([i, i])
-            data.extend([1,-1])
+            cols.extend([j1+j])
+            rows.extend([i])
+            data.extend([1])
             
     # top row
     for j in range(N):
         i+=1
         if j==0:
-            j1, j2 = (N+1)*N*2-(N), (N+1)*N*2+N
-            cols.extend([j1, j2])
-            rows.extend([i,i])
-            data.extend([-1,1])
+            j1 = (N+1)*N*2-(N)
+            cols.extend([j1])
+            rows.extend([i])
+            data.extend([-1])
         else:
-            cols.extend([j1+j, j2+j])
-            rows.extend([i, i])
-            data.extend([-1,1])
+            cols.extend([j1+j])
+            rows.extend([i])
+            data.extend([-1])
             
     # left
     for j in range(N):
         i+=1
         if j==0:
-            j1, j2 = 0, 2*(N+1)*N+2*N
-            cols.extend([j1, j2])
-            rows.extend([i,i])
-            data.extend([1,-1])
+            j1 = 0
+            cols.extend([j1])
+            rows.extend([i])
+            data.extend([1])
         else:
-            cols.extend([j1+j*(N+1), j2+j])
-            rows.extend([i, i])
-            data.extend([1,-1])
+            cols.extend([j1+j*(N+1)])
+            rows.extend([i])
+            data.extend([1])
             
     # left
     for j in range(N):
         i+=1
         if j==0:
-            j1, j2 = N, 2*(N+1)*N+N*N
-            cols.extend([j1, j2])
-            rows.extend([i,i])
-            data.extend([-1,1])
+            j1 = N
+            cols.extend([j1])
+            rows.extend([i])
+            data.extend([-1])
         else:
-            cols.extend([j1+j*(N+1), j2+j])
-            rows.extend([i, i])
-            data.extend([-1,1])
+            cols.extend([j1+j*(N+1)])
+            rows.extend([i])
+            data.extend([-1])
     
     
     # x=sparse.coo_matrix((data,(rows,cols)),shape=(21,36)).toarray()
-    return (sparse.coo_matrix((data,(rows,cols)),shape=(21,36)))
+    return (sparse.coo_matrix((data,(rows,cols)),shape=(N**2+4*N,2*(N+1)*N)))
 
 
 
