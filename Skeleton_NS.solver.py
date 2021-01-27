@@ -123,11 +123,11 @@ def setup_E10(N):
     cols.extend([jb1, 0])
     rows.extend([0, 0])
 
-    i = N; jb1 += 1
-    for j in range(2, 2 * N + 1, 3):  # side edges
-        cols.extend([jb1, j, j + 1, jb1 + 1])
+    i = N; jb1 += N
+    for j in range(2, 2 * N + 1, N):  # side edges
+        cols.extend([jb1, j, j + 1, jb1 - 2])
         rows.extend([i, i, i + 1, i + 1])
-        i += N + 1; jb1 += 2
+        i += N + 1; jb1 += 1
 
     # add last side edge
     cols.extend([jb1, N**2 - 1])
