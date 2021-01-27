@@ -65,16 +65,18 @@ V_wall_bot = 0
 V_wall_left = 0
 V_wall_right = 0
 
+
 # TODO: Set up the sparse incidence matrix tE21. Use the orientations described
 def get_idx_source(N):
-    return N**2 + 4*N
+    return N ** 2 + 4 * N
+
 
 def get_idx_edge(N):
     return 2 * N * (N + 1)
 
-def get_vertex_edge(N):
-    return (N + 1)**2 + 4 * (N + 1)
 
+def get_vertex_edge(N):
+    return (N + 1) ** 2 + 4 * (N + 1)
 
 # in the assignment.
 # Make sure to use sparse matrices to avoid memory problems
@@ -86,7 +88,58 @@ def get_vertex_edge(N):
 
 
 # TODO: Set up the sparse, inner-oriented  incidence matrix E10
+def setup_E10(N):
+    N_edges = get_idx_edge(N)
+    N_vertices = get_idx_source(N)
 
+    rows = []
+    cols = []
+
+    jb1 = N**2  # starting index for boundary pts; starting from 0
+    j = 0
+    for i in range(int(N_edges / 2), N_edges):  # vertical edges
+
+        if i < (int(N_edges / 2) + N):  # if line neighbours boundary pt
+            cols.extend([j, jb1])
+            jb1 += 1
+        elif i >= (N_edges - N):  # if line neighbours boundary pt
+            cols.extend([jb1, j - N])
+            jb1 += 1
+        else:  # looping through internal edges
+            # # - N since internal points start after N iterations
+            cols.extend([j, j - N])
+        rows.extend([i, i])
+        j += 1
+    i = 1; j = 1  # internal point starts after first boundary pt
+    for __ in range(N * (N - 1)):  # internal edges
+        cols.extend([j, j - 1])
+        rows.extend([i, i])
+        if i % (N-1) == 0:
+            i += N; j += N - 1
+        else:
+            i += 1; j += 1
+
+    # add first side edge
+    cols.extend([jb1, 0])
+    rows.extend([0, 0])
+
+    i = N; jb1 += 1
+    for j in range(2, 2 * N + 1, 3):  # side edges
+        cols.extend([jb1, j, j + 1, jb1 + 1])
+        rows.extend([i, i, i + 1, i + 1])
+        i += N + 1; jb1 += 2
+
+    # add last side edge
+    cols.extend([jb1, N**2 - 1])
+    rows.extend([i, i])
+
+    return sparse.coo_matrix(([1, -1] * N_edges, (rows, cols)),
+                             shape=(N_edges, N_vertices))
+
+
+def setup_E21(N):
+
+    raise NotImplementedError
 
 # TODO: Set up the (extended) sparse, inner-oriented incidence matrix E21
 
