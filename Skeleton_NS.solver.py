@@ -86,6 +86,28 @@ def get_vertex_edge(N):
 
 # TODO: Set up the outer-oriented incidence matrix tE10
 
+def tE10(N):
+    N_edges = 2*(N+1)*N
+    N_circ = (N+1)**2
+    rows=[]
+    cols=[]
+    data=[]
+    j1=0
+    j2=N+1
+    p=-1
+    for i in range(2*(N+1)*N):
+        if i<N*(N+1):
+            cols.extend([j1+i,j2+i])
+            rows.extend([i,i])
+            data.extend([-1,1])
+        else:
+            if (i-N*(N+1)+1)%(N)==1:
+                p+=1
+            cols.extend([i-N*(N+1)+p,i-N*(N+1)+1+p])
+            rows.extend([i,i])
+            data.extend([1,-1])
+    # x=sparse.coo_matrix((data,(rows,cols)),shape=(N_edges, N_circ)).toarray()
+    return (sparse.coo_matrix((data,(rows,cols)),shape=(N_edges, N_circ)))
 
 # TODO: Set up the sparse, inner-oriented  incidence matrix E10
 def setup_E10(N):
