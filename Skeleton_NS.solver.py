@@ -143,6 +143,85 @@ def setup_E21(N):
 
 # TODO: Set up the (extended) sparse, inner-oriented incidence matrix E21
 
+def tE21(N):
+    cols=[]
+    rows=[]
+    j1 = 0
+    j2 = 0
+    j3 = 0
+    j4 = 0
+    data=[]
+    #inner cells
+    for i in range(N**2):
+        if i==0:
+            j1, j2, j3, j4 = 0, 1, (N+1)*N, (N+1)*N+N
+        if i % N == 0 and i!=0:
+            j1, j2, j3, j4 = j1+2, j2+ 2, j3+1, j4+1
+        elif i!=0:
+            j1, j2, j3, j4 = j1+1, j2+1, j3+1, j4+1
+        # print([j1,j2,j3,j4])
+        cols.extend([j1, j2, j3, j4])
+        rows.extend([i, i, i, i])
+        data.extend([-1, 1, -1, 1])
+    # boundary points
+    
+    # bottom boundary points
+    for j in range(N):
+        i+=1
+        if j==0:
+            j1, j2 = (N+1)*N,4*(N+1*N)
+            cols.extend([j1, j2])
+            rows.extend([i,i])
+            data.extend([1,-1])
+        else:
+            cols.extend([j1+j, j2+j])
+            rows.extend([i, i])
+            data.extend([1,-1])
+            
+    # top row
+    for j in range(N):
+        i+=1
+        if j==0:
+            j1, j2 = (N+1)*N*2-(N), (N+1)*N*2+N
+            cols.extend([j1, j2])
+            rows.extend([i,i])
+            data.extend([-1,1])
+        else:
+            cols.extend([j1+j, j2+j])
+            rows.extend([i, i])
+            data.extend([-1,1])
+            
+    # left
+    for j in range(N):
+        i+=1
+        if j==0:
+            j1, j2 = 0, 2*(N+1)*N+2*N
+            cols.extend([j1, j2])
+            rows.extend([i,i])
+            data.extend([1,-1])
+        else:
+            cols.extend([j1+j*(N+1), j2+j])
+            rows.extend([i, i])
+            data.extend([1,-1])
+            
+    # left
+    for j in range(N):
+        i+=1
+        if j==0:
+            j1, j2 = N, 2*(N+1)*N+N*N
+            cols.extend([j1, j2])
+            rows.extend([i,i])
+            data.extend([-1,1])
+        else:
+            cols.extend([j1+j*(N+1), j2+j])
+            rows.extend([i, i])
+            data.extend([-1,1])
+    
+    
+    # x=sparse.coo_matrix((data,(rows,cols)),shape=(21,36)).toarray()
+    return (sparse.coo_matrix((data,(rows,cols)),shape=(21,36)))
+
+
 
 # TODO: Split off the prescribed tangential velocity and store this in
 # TODO: the vector u_pres
