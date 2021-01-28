@@ -330,10 +330,36 @@ def tE21(N):
 
 
 # TODO: Set up the Hodge matrices Ht11 and H1t1
+def setup_Ht11(N, th, h):
 
+    # initialize lists
+    rows = []
+    data = []
+
+    # compute number of edges
+    idx_max_edge = get_idx_edge(N)
+    idx_max_edgeh = int(idx_max_edge / 2) - 1
+
+    # list of th repeats
+    th_lst = np.repeat(th, N + 1)
+    h_lst = h.tolist() * N
+
+    # list of indices
+    idx_h_lst = np.arange(0, idx_max_edgeh + 1)
+    idx_v_lst = np.arange(idx_max_edgeh + 1, idx_max_edge)
+
+    for ht_i, h_i, idx_h, idx_v in zip(th_lst, h_lst, idx_h_lst, idx_v_lst):
+        hrat = ht_i / h_i
+        data.extend([hrat] * 2)
+        rows.extend([idx_h, idx_v])
+
+    return sparse.coo_matrix((data, [rows, rows]),
+                             dtype=np.float64,
+                             shape=(idx_max_edge, idx_max_edge))
 
 # TODO: Set up the Hodge matrix Ht02
 
+a = setup_Ht11(N, th, h).toarray()
 # Au = RHS
 # A = tE21@Ht11@E10
 # #print("A")
