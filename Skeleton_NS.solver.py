@@ -360,6 +360,24 @@ def setup_Ht11(N, th, h):
 # TODO: Set up the Hodge matrix Ht02
 
 a = setup_Ht11(N, th, h).toarray()
+    
+def Et21_rhs_mat(N):
+    length=get_idx_source(N)
+    rhs=np.zeros((length,2*N*(N+3)))
+    sign=-1
+    idx=N**2-1
+    idx_edge=2*N*(N+3)   # number of vertices
+    idx_edge=2*N*(N+1)-1
+    for i in range(4):
+        sign*=-1
+        for j in range(1,N+1):
+            idx+=1
+            idx_edge+=1
+            rhs[idx][idx_edge]=sign
+    print(rhs)
+    return rhs
+    
+x=Et21_rhs_mat(2)
 # Au = RHS
 # A = tE21@Ht11@E10
 # #print("A")
