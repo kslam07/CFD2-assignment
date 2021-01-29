@@ -89,7 +89,7 @@ def get_idx_circulation(N):
 
 # TODO: Insert the normal boundary conditions and split of the vector u_norm
 # RHS vector
-def tE10(N):
+def setup_tE10(N):
     N_edges = 2 * (N + 1) * N
     N_circ = (N + 1) ** 2
     rows = []
@@ -153,7 +153,7 @@ def setup_E10(N):
 
     i = N
     jb1 += N
-    for j in range(N - 1, N **2 - 1, N):  # side edges
+    for j in range(N - 1, N ** 2 - 1, N):  # side edges
         cols.extend([jb1, j, j + 1, jb1 - 2])
         rows.extend([i, i, i + 1, i + 1])
         i += N + 1
@@ -202,7 +202,6 @@ def setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right):
         rhs[rows[-1]] = -U_wall_bot
         jv += 1  # update iterands
 
-
     # top boundary cells
     jv = idx_max_edges - 1
     jh = idx_start_vert_edge - 2  # skipping upper right corner
@@ -238,7 +237,7 @@ def setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right):
     jv = idx_start_vert_edge + N
     jh = 1
 
-    for idx in range(1, (N - 1)**2 + 1):
+    for idx in range(1, (N - 1) ** 2 + 1):
         cols.extend([jv + 1, jh + N + 1, jv, jh])
         rows.extend([i] * 4)
         data.extend([1, -1, -1, 1])
@@ -258,7 +257,7 @@ def setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right):
                              dtype=np.int64), rhs
 
 
-def tE21(N):
+def setup_tE21(N):
     cols = []
     rows = []
     data = []
@@ -335,7 +334,6 @@ def tE21(N):
 
 
 def setup_Ht11(N, th, h):
-
     # initialize lists
     rows = []
     data = []
@@ -374,94 +372,115 @@ def setup_Ht02(N, h):
         cols.append(i)
 
     return sparse.coo_matrix((data, [cols, cols]),
-                             dtype=np.float64, shape=((N+1)**2, (N+1)**2))
+                             dtype=np.float64,
+                             shape=((N + 1) ** 2, (N + 1) ** 2))
 
 
 def Et21_rhs_mat(N):
-    length=get_idx_source(N)
-    rhs=np.zeros((length,2*N*(N+3)))
-    sign=-1
-    idx=N**2-1
-    idx_edge=2*N*(N+1)-1
+    length = get_idx_source(N)
+    rhs = np.zeros((length, 2 * N * (N + 3)))
+    sign = -1
+    idx = N ** 2 - 1
+    idx_edge = 2 * N * (N + 1) - 1
     for i in range(4):
-        sign*=-1
-        for j in range(1,N+1):
-            idx+=1
-            idx_edge+=1
-            rhs[idx][idx_edge]=sign
+        sign *= -1
+        for j in range(1, N + 1):
+            idx += 1
+            idx_edge += 1
+            rhs[idx][idx_edge] = sign
     return rhs
 
+
+tE21 = setup_tE21(N)
+tE10 = setup_tE10(N)
+E10 = setup_E10(N)
+E21, u_pres = setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right)
+Ht11 = setup_Ht11(N, th, h)
+H1t1 = setup_H1t1(Ht11)
+Ht02 = setup_Ht02(N, h)
+u_norm = Et21_rhs_mat(N)
+
 # Au = RHS
-# A = tE21@Ht11@E10
-# #print("A")
-# #print(A.toarray())
-# #input("Press Enter to continue...")
-#
-# n = A.shape[0]
-# LU = splinalg.splu(A,diag_pivot_thresh=0) # sparse LU decomposition
-#
-# u_pres_vort = Ht02@u_pres
-# temp = H1t1@tE10@Ht02@u_pres
-#
-# u_pres = temp
-#
-# VLaplace = H1t1@tE10@Ht02@E21
-# DIV = tE21@Ht11
-#
-# ux_xi = np.zeros([(N+1)*(N+1),1], dtype = float)
-# uy_xi = np.zeros([(N+1)*(N+1),1], dtype = float)
-# convective = np.zeros([2*N*(N+1),1], dtype = float)
-#
-# while (diff>tol):
-#
-#     xi = Ht02@E21@u + u_pres_vort
-#
-#     for i in range(N+1):
-#         for j in range(N+1):
-#             k = j + i*(N+1)
-#             if j==0:
-#                 ux_xi[k] = U_wall_bot*xi[i+j*(N+1)]
-#                 uy_xi[k] = V_wall_left*xi[j+i*(N+1)
-#             elif j==N:
-#                 ux_xi[k] = U_wall_top*xi[i+j*(N+1)]
-#                 uy_xi[k] = V_wall_right*xi[j+i*(N+1)]
-#             else:
-#                 ux_xi[k] = (u[i+j*(N+1)]+u[i+(j-1)*(N+1)])*xi[i+j*(N+1)]/(2.*h[i])                       # Klopt
-#                 uy_xi[k] = (u[N*(N+1)+j+i*N] + u[N*(N+1)+j-1+i*N])*xi[j+i*(N+1)]/(2.*h[i])
-#
-#     for  i in range(N):
-#         for j in range(N+1):
-#             convective[j+i*(N+1)] = -(uy_xi[j+i*(N+1)]+uy_xi[j+(i+1)*(N+1)])*h[j]/2.
-#             convective[N*(N+1)+i+j*N] = (ux_xi[j+i*(N+1)]+ux_xi[j+(i+1)*(N+1)])*h[j]/2.
-#
-#     # Set up the right hand side for the equation for the pressure
-#
-#     rhs_Pois = DIV@( u/dt - convective - VLaplace@u/Re - u_pres/Re) + u_norm/dt
-#
-#     # Solve for the pressure
-#
-#     p = LU.solve(rhs_Pois)
-#
-#     # Store the velocity from the previous time level in the vector uold
-#
-#     uold = u
-#
-#     # Update the velocity field
-#
-#     u = u - dt*(convective + E10@p + (VLaplace@u)/Re + u_pres/Re)
-#
-#     # Every other 1000 iterations check whether you approach steady state and
-#     # check whether you satsify conservation of mass. The largest rate at whci
-#     # mass is created ot destroyed is denoted my 'maxdiv'. This number should
-#     # be close to machine precision.
-#
-#     if ((iter%1000)==0):
-#         maxdiv = max(abs(DIV@u+u_norm))
-#         diff = max(abs(u-uold))/dt
-#
-#         print("maxdiv : ",maxdiv)
-#         print("diff   : ", diff)
-#
-#
-#     iter += 1
-#
+A = tE21 @ Ht11 @ E10
+# print("A")
+# print(A.toarray())
+# input("Press Enter to continue...")
+
+n = A.shape[0]
+LU = splinalg.splu(A, diag_pivot_thresh=0)  # sparse LU decomposition
+
+u_pres_vort = Ht02 @ u_pres
+temp = H1t1 @ tE10 @ Ht02 @ u_pres
+
+u_pres = temp
+
+VLaplace = H1t1 @ tE10 @ Ht02 @ E21
+DIV = tE21 @ Ht11
+
+ux_xi = np.zeros([(N + 1) * (N + 1), 1], dtype=float)
+uy_xi = np.zeros([(N + 1) * (N + 1), 1], dtype=float)
+convective = np.zeros([2 * N * (N + 1), 1], dtype=float)
+
+diff = 1
+iter = 1
+
+while (diff > tol):
+
+    xi = Ht02 @ E21 @ u + u_pres_vort
+
+    for i in range(N + 1):
+        for j in range(N + 1):
+            k = j + i * (N + 1)
+            if j == 0:
+                ux_xi[k] = U_wall_bot * xi[i + j * (N + 1)]
+                uy_xi[k] = V_wall_left * xi[j + i * (N + 1)]
+            elif j == N:
+                ux_xi[k] = U_wall_top * xi[i + j * (N + 1)]
+                uy_xi[k] = V_wall_right * xi[j + i * (N + 1)]
+            else:
+                ux_xi[k] = (u[i + j * (N + 1)] + u[i + (j - 1) * (N + 1)]) * \
+                           xi[i + j * (N + 1)] / (2. * h[i])  # Klopt
+                uy_xi[k] = (u[N * (N + 1) + j + i * N] + u[
+                    N * (N + 1) + j - 1 + i * N]) * xi[j + i * (N + 1)] / (
+                                       2. * h[i])
+
+    for i in range(N):
+        for j in range(N + 1):
+            convective[j + i * (N + 1)] = -(uy_xi[j + i * (N + 1)] + uy_xi[
+                j + (i + 1) * (N + 1)]) * h[j] / 2.
+            convective[N * (N + 1) + i + j * N] = (ux_xi[j + i * (N + 1)] +
+                                                   ux_xi[j + (i + 1) * (
+                                                               N + 1)]) * h[
+                                                      j] / 2.
+
+    # Set up the right hand side for the equation for the pressure
+
+    rhs_Pois = DIV @ (
+                u / dt - convective - VLaplace @ u / Re - u_pres / Re) +\
+               u_norm / dt
+
+    # Solve for the pressure
+
+    p = LU.solve(rhs_Pois)
+
+    # Store the velocity from the previous time level in the vector uold
+
+    uold = u
+
+    # Update the velocity field
+
+    u = u - dt * (convective + E10 @ p + (VLaplace @ u) / Re + u_pres / Re)
+
+    # Every other 1000 iterations check whether you approach steady state and
+    # check whether you satsify conservation of mass. The largest rate at whci
+    # mass is created ot destroyed is denoted my 'maxdiv'. This number should
+    # be close to machine precision.
+
+    if ((iter % 1000) == 0):
+        maxdiv = max(abs(DIV @ u + u_norm))
+        diff = max(abs(u - uold)) / dt
+
+        print("maxdiv : ", maxdiv)
+        print("diff   : ", diff)
+
+    iter += 1
