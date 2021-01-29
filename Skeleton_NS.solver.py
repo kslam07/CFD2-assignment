@@ -10,6 +10,7 @@ from scipy.sparse import linalg as splinalg
 import scipy.sparse as sparse
 import matplotlib.pyplot as plt
 import numpy as np
+from itertools import product
 
 #  00D#MMXX#
 
@@ -88,9 +89,6 @@ def get_idx_circulation(N):
 
 # TODO: Insert the normal boundary conditions and split of the vector u_norm
 # RHS vector
-
-# TODO: Set up the outer-oriented incidence matrix tE10
-
 def tE10(N):
     N_edges = 2 * (N + 1) * N
     N_circ = (N + 1) ** 2
@@ -115,7 +113,6 @@ def tE10(N):
     return (sparse.coo_matrix((data, (rows, cols)), shape=(N_edges, N_circ)))
 
 
-# TODO: Set up the sparse, inner-oriented  incidence matrix E10
 def setup_E10(N):
     N_edges = get_idx_edge(N)
     N_vertices = get_idx_source(N)
@@ -170,7 +167,7 @@ def setup_E10(N):
                              shape=(N_edges, N_vertices), dtype=np.int64)
 
 
-def setup_E21(N):
+def setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right):
     idx_max_circ = get_idx_circulation(N)
     idx_max_edges = get_idx_edge(N)
     idx_start_vert_edge = int(idx_max_edges / 2)
@@ -178,6 +175,8 @@ def setup_E21(N):
     cols = []
     rows = []
     data = []
+    rhs = np.zeros((idx_max_circ, 1))
+
     # edges
     # lower left, lower right, upper left, upper right
     cols.extend([idx_start_vert_edge, 0,
@@ -188,13 +187,21 @@ def setup_E21(N):
                  idx_max_circ - 1, idx_max_circ - 1])
     data.extend([1, -1, -1, -1, 1, 1, -1, 1])
 
+    # RHS edges
+    rhs[0] = V_wall_left - U_wall_bot
+    rhs[N] = -V_wall_right - U_wall_bot
+    rhs[idx_max_circ - N - 1] = U_wall_top + V_wall_left
+    rhs[idx_max_circ - 1] = U_wall_top - V_wall_right
+
     # bottom boundary cells
     jv = idx_start_vert_edge
     for i in range(1, N):
         cols.extend([jv + 1, i, jv])
         rows.extend([i] * 3)
         data.extend([1, -1, -1])
+        rhs[rows[-1]] = -U_wall_bot
         jv += 1  # update iterands
+
 
     # top boundary cells
     jv = idx_max_edges - 1
@@ -203,6 +210,7 @@ def setup_E21(N):
         cols.extend([jv, jv - 1, jh])
         rows.extend([i - 1] * 3)  # -1 due to Python
         data.extend([1, -1, 1])
+        rhs[rows[-1]] = U_wall_top
         jv -= 1
         jh -= 1
 
@@ -217,6 +225,8 @@ def setup_E21(N):
         rows.extend([i, i, i,
                      i + N, i + N, i + N])
         data.extend([1, -1, 1, -1, -1, 1])
+        rhs[i] = V_wall_left
+        rhs[i + N] = -V_wall_right
 
         i += N + 1
         jv += N
@@ -245,10 +255,8 @@ def setup_E21(N):
 
     return sparse.coo_matrix((data, (rows, cols)),
                              shape=(idx_max_circ, idx_max_edges),
-                             dtype=np.int64)
-a = setup_E21(3).toarray()
-b = setup_E10(3).toarray()
-# TODO: Set up the (extended) sparse, inner-oriented incidence matrix E21
+                             dtype=np.int64), rhs
+
 
 def tE21(N):
     cols = []
@@ -325,11 +333,7 @@ def tE21(N):
                              shape=(N ** 2 + 4 * N, 2 * (N + 1) * N),
                              dtype=np.int64)
 
-# TODO: Split off the prescribed tangential velocity and store this in
-# TODO: the vector u_pres
 
-
-# TODO: Set up the Hodge matrices Ht11 and H1t1
 def setup_Ht11(N, th, h):
 
     # initialize lists
@@ -357,16 +361,27 @@ def setup_Ht11(N, th, h):
                              dtype=np.float64,
                              shape=(idx_max_edge, idx_max_edge))
 
-# TODO: Set up the Hodge matrix Ht02
 
-a = setup_Ht11(N, th, h).toarray()
-    
+def setup_H1t1(Ht11):
+    return sparse.linalg.inv(Ht11.tocsc()).tocoo()
+
+
+def setup_Ht02(N, h):
+    data = []
+    cols = []
+    for i, (hv, hh) in enumerate(product(h, h)):
+        data.append(hv * hh)
+        cols.append(i)
+
+    return sparse.coo_matrix((data, [cols, cols]),
+                             dtype=np.float64, shape=((N+1)**2, (N+1)**2))
+
+
 def Et21_rhs_mat(N):
     length=get_idx_source(N)
     rhs=np.zeros((length,2*N*(N+3)))
     sign=-1
     idx=N**2-1
-    idx_edge=2*N*(N+3)   # number of vertices
     idx_edge=2*N*(N+1)-1
     for i in range(4):
         sign*=-1
@@ -374,10 +389,8 @@ def Et21_rhs_mat(N):
             idx+=1
             idx_edge+=1
             rhs[idx][idx_edge]=sign
-    print(rhs)
     return rhs
-    
-x=Et21_rhs_mat(2)
+
 # Au = RHS
 # A = tE21@Ht11@E10
 # #print("A")
