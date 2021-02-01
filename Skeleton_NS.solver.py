@@ -84,6 +84,8 @@ def get_idx_circulation(N):
     return (N + 1) ** 2
 
 
+def get_idx_edges_boundary(N):
+    return 2 * N * (N + 3)
 # in the assignment.
 # Make sure to use sparse matrices to avoid memory problems
 
@@ -398,7 +400,7 @@ E21, u_pres = setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right)
 Ht11 = setup_Ht11(N, th, h)
 H1t1 = setup_H1t1(Ht11)
 Ht02 = setup_Ht02(N, h)
-u_norm = Et21_rhs_mat(N)
+u_norm = Et21_rhs_mat(N) @ np.zeros((get_idx_edges_boundary(N), 1))
 
 # Au = RHS
 A = tE21 @ Ht11 @ E10
@@ -484,3 +486,19 @@ while (diff > tol):
         print("diff   : ", diff)
 
     iter += 1
+
+
+# TODO plot stream functions
+
+
+# TODO plot pressure field
+# def plot_contour(x, p):
+#
+#     xlst = [xi - x[i] for i, xi in enumerate(x[1:])]
+#
+#
+#     return
+
+# TODO plot vorticity field
+
+# TODO plot velocity at given x OR y
