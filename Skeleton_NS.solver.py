@@ -156,7 +156,7 @@ def setup_E10(N):
     i = N
     jb1 += N
     for j in range(N - 1, N ** 2 - 1, N):  # side edges
-        cols.extend([jb1, j, j + 1, jb1 - 2])
+        cols.extend([jb1, j, j + 1, jb1 - (N - 1)])
         rows.extend([i, i, i + 1, i + 1])
         i += N + 1
         jb1 += 1
