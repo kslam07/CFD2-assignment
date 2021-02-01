@@ -142,7 +142,7 @@ def setup_E10(N):
     for __ in range(N * (N - 1)):  # horizontal internal edges
         cols.extend([j, j - 1])
         rows.extend([i, i])
-        if i % (N - 1) == 0:
+        if (i + 2) % (N + 1) == 0:
             i += 3
             j += 2
         else:
@@ -492,12 +492,50 @@ while (diff > tol):
 
 
 # TODO plot pressure field
-# def plot_contour(x, p):
-#
-#     xlst = [xi - x[i] for i, xi in enumerate(x[1:])]
-#
-#
-#     return
+def plot_contour(N, x, p_org):
+
+    p = p_org.copy()
+
+
+    # internal grid
+    X, Y = np.meshgrid(x[1:-1], x[1:-1])
+    P = p[:9].reshape(N, N)
+
+    fig, ax = plt.subplots(1, 1, dpi=150)
+    cs = ax.contour(X, Y, P)
+    ax.clabel(cs, inline=1, fontsize=12)
+    ax.set_xlabel("x [-]")
+    ax.set_ylabel("y [-]")
+    return
+
+def test_matrices(E10, E21, tE10, tE21, H1t1, Ht02, Ht11):
+
+    E10 = E10.toarray()
+    E21 = E21.toarray()
+    tE10 = tE10.toarray()
+    tE21 = tE21.toarray()
+    H1t1 = H1t1.toarray()
+    Ht02 = Ht02.toarray()
+    Ht11 = Ht11.toarray()
+
+    return E10, E21, tE10, tE21, H1t1, Ht02, Ht11
+
+
+def plot_streamfunction(N, u, x, h):
+
+    xdat = [hi / 2 + float(x[i]) for i, hi in enumerate(h) if i != 0]
+    xdat.insert(0, h[0] / 2)
+
+    X, Y = np.meshgrid(xdat, xdat)
+    U = u[:9].reshape(N, N)
+
+    fig, ax = plt.subplots(1, 1, dpi=150)
+    cs = ax.contour(X, Y, U)
+    ax.clabel(cs, inline=1, fontsize=12)
+    ax.set_xlabel("x [-]")
+    ax.set_ylabel("y [-]")
+
+    return
 
 # TODO plot vorticity field
 
