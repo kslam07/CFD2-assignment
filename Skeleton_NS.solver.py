@@ -48,8 +48,9 @@ h_min = min(h_min, th_min)  # determination smallest mesh size
 
 dt = min(h_min, 0.5 * Re * h_min ** 2)  # dt for stable integration
 
-dt = 5. * dt
+dt = 5 * dt
 
+run = True
 #
 #  Note that the time step is a bit conservative so it may be useful to see
 #  if the time step can be slightly increased. This will speed up the
@@ -169,7 +170,7 @@ def setup_E10(N):
                              shape=(N_edges, N_vertices), dtype=np.int64)
 
 
-def setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right):
+def setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right, h):
     idx_max_circ = get_idx_circulation(N)
     idx_max_edges = get_idx_edge(N)
     idx_start_vert_edge = int(idx_max_edges / 2)
@@ -192,8 +193,8 @@ def setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right):
     # RHS edges
     rhs[0] = V_wall_left - U_wall_bot
     rhs[N] = -V_wall_right - U_wall_bot
-    rhs[idx_max_circ - N - 1] = U_wall_top + V_wall_left
-    rhs[idx_max_circ - 1] = U_wall_top - V_wall_right
+    rhs[idx_max_circ - N - 1] = (U_wall_top + V_wall_left) * h[-1]
+    rhs[idx_max_circ - 1] = (U_wall_top - V_wall_right) * h[-1]
 
     # bottom boundary cells
     jv = idx_start_vert_edge
@@ -211,7 +212,7 @@ def setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right):
         cols.extend([jv, jv - 1, jh])
         rows.extend([i - 1] * 3)  # -1 due to Python
         data.extend([1, -1, 1])
-        rhs[rows[-1]] = U_wall_top
+        rhs[rows[-1]] = U_wall_top * h[1]
         jv -= 1
         jh -= 1
 
@@ -345,17 +346,22 @@ def setup_Ht11(N, th, h):
     idx_max_edgeh = int(idx_max_edge / 2) - 1
 
     # list of th repeats
-    th_lst = np.repeat(th, N + 1)
-    h_lst = h.tolist() * N
-
-    # list of indices
+    th_lst_h = np.repeat(th, N + 1)
+    h_lst_h = h.tolist() * N  # [a, b, c, a, b, c, ...]
+    h_lst_v = np.repeat(h, N)  # [a, a, ..., b, b, ..., c, c, ...]
+    th_lst_v = th.tolist() * (N + 1)
+     # list of indices
     idx_h_lst = np.arange(0, idx_max_edgeh + 1)
     idx_v_lst = np.arange(idx_max_edgeh + 1, idx_max_edge)
 
-    for ht_i, h_i, idx_h, idx_v in zip(th_lst, h_lst, idx_h_lst, idx_v_lst):
+    for ht_i, h_i, idx_h in zip(th_lst_h, h_lst_h, idx_h_lst):
         hrat = ht_i / h_i
-        data.extend([hrat] * 2)
-        rows.extend([idx_h, idx_v])
+        data.append(hrat)
+        rows.append(idx_h)
+    for ht_i, h_i, idx_v in zip(th_lst_v, h_lst_v, idx_v_lst):
+        hrat = ht_i / h_i
+        data.append(hrat)
+        rows.append(idx_v)
 
     return sparse.coo_matrix((data, [rows, rows]),
                              dtype=np.float64,
@@ -370,7 +376,7 @@ def setup_Ht02(N, h):
     data = []
     cols = []
     for i, (hv, hh) in enumerate(product(h, h)):
-        data.append(hv * hh)
+        data.append(1 / (hv * hh))
         cols.append(i)
 
     return sparse.coo_matrix((data, [cols, cols]),
@@ -393,120 +399,136 @@ def Et21_rhs_mat(N):
     return rhs
 
 
+# tE21 = setup_tE21(N)
+# tE10 = setup_tE10(N)
+# E10 = setup_E10(N)
+# E21, u_pres = setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right, h)
+# Ht11 = setup_Ht11(N, th, h)
+# H1t1 = setup_H1t1(Ht11)
+# Ht02 = setup_Ht02(N, h)
+# u_norm = Et21_rhs_mat(N) @ np.zeros((get_idx_edges_boundary(N), 1))
+
 tE21 = setup_tE21(N)
-tE10 = setup_tE10(N)
-E10 = setup_E10(N)
-E21, u_pres = setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right)
+E21, u_pres = setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right, h)
+E10 = -tE21.T
+tE10 = E21.T
+u_norm = Et21_rhs_mat(N) @ np.zeros((get_idx_edges_boundary(N), 1))
 Ht11 = setup_Ht11(N, th, h)
 H1t1 = setup_H1t1(Ht11)
 Ht02 = setup_Ht02(N, h)
-u_norm = Et21_rhs_mat(N) @ np.zeros((get_idx_edges_boundary(N), 1))
 
 # Au = RHS
-A = tE21 @ Ht11 @ E10
-# print("A")
-# print(A.toarray())
-# input("Press Enter to continue...")
 
-n = A.shape[0]
-LU = splinalg.splu(A, diag_pivot_thresh=0)  # sparse LU decomposition
+if run:
+    A = tE21 @ Ht11 @ E10
+    # print("A")
+    # print(A.toarray())
+    input("Press Enter to continue...")
 
-u_pres_vort = Ht02 @ u_pres
-temp = H1t1 @ tE10 @ Ht02 @ u_pres
+    n = A.shape[0]
+    LU = splinalg.splu(A.tocsc(), diag_pivot_thresh=0)  # sparse LU decomposition
 
-u_pres = temp
+    u_pres_vort = Ht02 @ u_pres
+    temp = H1t1 @ tE10 @ Ht02 @ u_pres
 
-VLaplace = H1t1 @ tE10 @ Ht02 @ E21
-DIV = tE21 @ Ht11
+    u_pres = temp
 
-ux_xi = np.zeros([(N + 1) * (N + 1), 1], dtype=float)
-uy_xi = np.zeros([(N + 1) * (N + 1), 1], dtype=float)
-convective = np.zeros([2 * N * (N + 1), 1], dtype=float)
+    VLaplace = H1t1 @ tE10 @ Ht02 @ E21
+    DIV = tE21 @ Ht11
 
-diff = 1
-iter = 1
+    ux_xi = np.zeros([(N + 1) * (N + 1), 1], dtype=float)
+    uy_xi = np.zeros([(N + 1) * (N + 1), 1], dtype=float)
+    convective = np.zeros([2 * N * (N + 1), 1], dtype=float)
 
-while (diff > tol):
+    diff = 1
+    iter = 1
 
-    xi = Ht02 @ E21 @ u + u_pres_vort
+    while (diff > tol):
 
-    for i in range(N + 1):
-        for j in range(N + 1):
-            k = j + i * (N + 1)
-            if j == 0:
-                ux_xi[k] = U_wall_bot * xi[i + j * (N + 1)]
-                uy_xi[k] = V_wall_left * xi[j + i * (N + 1)]
-            elif j == N:
-                ux_xi[k] = U_wall_top * xi[i + j * (N + 1)]
-                uy_xi[k] = V_wall_right * xi[j + i * (N + 1)]
-            else:
-                ux_xi[k] = (u[i + j * (N + 1)] + u[i + (j - 1) * (N + 1)]) * \
-                           xi[i + j * (N + 1)] / (2. * h[i])  # Klopt
-                uy_xi[k] = (u[N * (N + 1) + j + i * N] + u[
-                    N * (N + 1) + j - 1 + i * N]) * xi[j + i * (N + 1)] / (
-                                       2. * h[i])
+        xi = Ht02 @ E21 @ u + u_pres_vort
 
-    for i in range(N):
-        for j in range(N + 1):
-            convective[j + i * (N + 1)] = -(uy_xi[j + i * (N + 1)] + uy_xi[
-                j + (i + 1) * (N + 1)]) * h[j] / 2.
-            convective[N * (N + 1) + i + j * N] = (ux_xi[j + i * (N + 1)] +
-                                                   ux_xi[j + (i + 1) * (
-                                                               N + 1)]) * h[
-                                                      j] / 2.
+        for i in range(N + 1):
+            for j in range(N + 1):
+                k = j + i * (N + 1)
+                if j == 0:
+                    ux_xi[k] = U_wall_bot * xi[i + j * (N + 1)]
+                    uy_xi[k] = V_wall_left * xi[j + i * (N + 1)]
+                elif j == N:
+                    ux_xi[k] = U_wall_top * xi[i + j * (N + 1)]
+                    uy_xi[k] = V_wall_right * xi[j + i * (N + 1)]
+                else:
+                    ux_xi[k] = (u[i + j * (N + 1)] + u[i + (j - 1) * (N + 1)]) * \
+                               xi[i + j * (N + 1)] / (2. * h[i])  # Klopt
+                    uy_xi[k] = (u[N * (N + 1) + j + i * N] + u[
+                        N * (N + 1) + j - 1 + i * N]) * xi[j + i * (N + 1)] / (
+                                           2. * h[i])
 
-    # Set up the right hand side for the equation for the pressure
+        for i in range(N):
+            for j in range(N + 1):
+                convective[j + i * (N + 1)] = -(uy_xi[j + i * (N + 1)] + uy_xi[
+                    j + (i + 1) * (N + 1)]) * h[j] / 2.
+                convective[N * (N + 1) + i + j * N] = (ux_xi[j + i * (N + 1)] +
+                                                       ux_xi[j + (i + 1) * (
+                                                                   N + 1)]) * h[
+                                                          j] / 2.
 
-    rhs_Pois = DIV @ (
-                u / dt - convective - VLaplace @ u / Re - u_pres / Re) +\
-               u_norm / dt
+        # Set up the right hand side for the equation for the pressure
 
-    # Solve for the pressure
+        rhs_Pois = DIV @ (
+                    u / dt - convective - VLaplace @ u / Re - u_pres / Re) +\
+                   u_norm / dt
 
-    p = LU.solve(rhs_Pois)
+        # Solve for the pressure
 
-    # Store the velocity from the previous time level in the vector uold
+        p = LU.solve(rhs_Pois)
 
-    uold = u
+        # Store the velocity from the previous time level in the vector uold
 
-    # Update the velocity field
+        uold = u
 
-    u = u - dt * (convective + E10 @ p + (VLaplace @ u) / Re + u_pres / Re)
+        # Update the velocity field
 
-    # Every other 1000 iterations check whether you approach steady state and
-    # check whether you satsify conservation of mass. The largest rate at whci
-    # mass is created ot destroyed is denoted my 'maxdiv'. This number should
-    # be close to machine precision.
+        u = u - dt * (convective + E10 @ p + (VLaplace @ u) / Re + u_pres / Re)
 
-    if ((iter % 1000) == 0):
-        maxdiv = max(abs(DIV @ u + u_norm))
-        diff = max(abs(u - uold)) / dt
+        # Every other 1000 iterations check whether you approach steady state and
+        # check whether you satsify conservation of mass. The largest rate at whci
+        # mass is created ot destroyed is denoted my 'maxdiv'. This number should
+        # be close to machine precision.
 
-        print("maxdiv : ", maxdiv)
-        print("diff   : ", diff)
+        if ((iter % 1000) == 0):
+            maxdiv = max(abs(DIV @ u + u_norm))
+            diff = max(abs(u - uold)) / dt
 
-    iter += 1
+            print("maxdiv : ", maxdiv)
+            print("diff   : ", diff)
+
+        iter += 1
 
 
 # TODO plot stream functions
 
 
 # TODO plot pressure field
-def plot_contour(N, x, p_org):
+def plot_contour(N, x, u_org, p_org, tE21):
 
-    p = p_org.copy()
-
+    ptot = p_org.copy()
+    u = []
+    for i in range(tE21.shape[0]):
+        ui = tE21.getrow(i) @ u_org
+        u.append(float(ui))
+    u = np.array(u).reshape(-1, 1)
+    p = ptot - 0.5 * u**2
 
     # internal grid
     X, Y = np.meshgrid(x[1:-1], x[1:-1])
-    P = p[:9].reshape(N, N)
+    P = p[:N**2].reshape(N, N)
 
     fig, ax = plt.subplots(1, 1, dpi=150)
-    cs = ax.contour(X, Y, P)
+    cs = ax.contour(X, Y, P, levels=10)
     ax.clabel(cs, inline=1, fontsize=12)
     ax.set_xlabel("x [-]")
     ax.set_ylabel("y [-]")
-    return
+
 
 def test_matrices(E10, E21, tE10, tE21, H1t1, Ht02, Ht11):
 
@@ -521,16 +543,20 @@ def test_matrices(E10, E21, tE10, tE21, H1t1, Ht02, Ht11):
     return E10, E21, tE10, tE21, H1t1, Ht02, Ht11
 
 
+def test_E10(E10, tE21):
+    return np.allclose(-E10.T, tE21)
+
+
 def plot_streamfunction(N, u, x, h):
 
     xdat = [hi / 2 + float(x[i]) for i, hi in enumerate(h) if i != 0]
     xdat.insert(0, h[0] / 2)
 
     X, Y = np.meshgrid(xdat, xdat)
-    U = u[:9].reshape(N, N)
+    U = u[:N**2].reshape(N, N)
 
     fig, ax = plt.subplots(1, 1, dpi=150)
-    cs = ax.contour(X, Y, U)
+    cs = ax.contour(X, Y, U, l)
     ax.clabel(cs, inline=1, fontsize=12)
     ax.set_xlabel("x [-]")
     ax.set_ylabel("y [-]")
@@ -538,5 +564,22 @@ def plot_streamfunction(N, u, x, h):
     return
 
 # TODO plot vorticity field
+
+def plot_vorticity(N, E21, u_org, u0):
+
+    u = u_org.copy()
+    # compute grid
+    xdat = [hi / 2 + float(x[i]) for i, hi in enumerate(h) if i != 0]
+    xdat.insert(0, h[0] / 2)
+    X, Y = np.meshgrid(xdat, xdat)
+    # compute vorticity
+    vort = E21 @ u + u0
+
+    # plot vorticity
+    fig, ax = plt.subplots(1, 1, dpi=150)
+
+    cs = ax.contour(X, Y, vort.reshape(N + 1, N + 1))
+
+
 
 # TODO plot velocity at given x OR y
