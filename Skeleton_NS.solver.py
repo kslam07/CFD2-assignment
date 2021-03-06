@@ -257,7 +257,7 @@ def setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right, h):
 
     return sparse.coo_matrix((data, (rows, cols)),
                              shape=(idx_max_circ, idx_max_edges),
-                             dtype=np.int64), rhs
+                             dtype=np.int64), -rhs
 
 
 def setup_tE21(N):
@@ -421,9 +421,6 @@ Ht02 = setup_Ht02(N, h)
 
 if run:
     A = tE21 @ Ht11 @ E10
-    # print("A")
-    # print(A.toarray())
-    input("Press Enter to continue...")
 
     n = A.shape[0]
     LU = splinalg.splu(A.tocsc(), diag_pivot_thresh=0)  # sparse LU decomposition
@@ -505,31 +502,6 @@ if run:
         iter += 1
 
 
-# TODO plot stream functions
-
-
-# TODO plot pressure field
-def plot_contour(N, x, u_org, p_org, tE21):
-
-    ptot = p_org.copy()
-    u = []
-    for i in range(tE21.shape[0]):
-        ui = tE21.getrow(i) @ u_org
-        u.append(float(ui))
-    u = np.array(u).reshape(-1, 1)
-    p = ptot - 0.5 * u**2
-
-    # internal grid
-    X, Y = np.meshgrid(x[1:-1], x[1:-1])
-    P = p[:N**2].reshape(N, N)
-
-    fig, ax = plt.subplots(1, 1, dpi=150)
-    cs = ax.contour(X, Y, P, levels=10)
-    ax.clabel(cs, inline=1, fontsize=12)
-    ax.set_xlabel("x [-]")
-    ax.set_ylabel("y [-]")
-
-
 def test_matrices(E10, E21, tE10, tE21, H1t1, Ht02, Ht11):
 
     E10 = E10.toarray()
@@ -547,6 +519,50 @@ def test_E10(E10, tE21):
     return np.allclose(-E10.T, tE21)
 
 
+# TODO plot stream functions
+def compute_pstat(N, p_org, u_org, h_org):
+    idx_edges = get_idx_edge(N)
+
+    p_tot = p_org[:N**2].copy().reshape(N, N)
+    vel = u_org.copy()
+    h = h_org.reshape(-1, N+1)
+
+    u = vel[:int(idx_edges/2)].reshape(N, N+1) / h  # reshape u to mesh shape
+    v = vel[int(idx_edges/2):].reshape(N+1, N) / h.T
+
+    # neighbouring rows neighbour a point for u
+    u_magn = (u[:, :-1] + u[:, 1:]) / 2
+    v_magn = (v[:-1, :] + v[1:, :]) / 2
+
+    vel_magn = np.sqrt(u_magn**2 + v_magn**2)
+
+    p = p_tot - 0.5 * vel_magn**2
+
+    # take a reference pressure; taken in the centre of mesh
+    if N % 2:  # then odd, there must be a centre point
+        p_ref = p[int(N/2), int(N/2)]
+    else:
+        p_ref = np.mean(p[[int(N/2)-1, int(N/2)], :][:, [int(N/2)-1, int(N/2)]])
+
+    p = p - p_ref
+
+    return p
+
+# TODO plot pressure field
+def plot_contour(N, x, u_org, p_org, h):
+    p = compute_pstat(N, p_org, u_org, h)
+    # internal grid
+    X, Y = np.meshgrid(x[1:-1], x[1:-1])
+    prescont = [-0.002,0.0,0.02,0.05,0.07,0.09,0.11,0.12,0.17,0.3]
+    fig, ax = plt.subplots(1, 1, dpi=150)
+    cs = ax.contour(X, Y, p, levels=prescont)
+    ax.clabel(cs, inline=1, fontsize=12)
+    ax.set_xlabel("x [-]")
+    ax.set_ylabel("y [-]")
+
+    return fig, ax
+
+
 def plot_streamfunction(N, u, x, h):
 
     xdat = [hi / 2 + float(x[i]) for i, hi in enumerate(h) if i != 0]
@@ -556,7 +572,7 @@ def plot_streamfunction(N, u, x, h):
     U = u[:N**2].reshape(N, N)
 
     fig, ax = plt.subplots(1, 1, dpi=150)
-    cs = ax.contour(X, Y, U, l)
+    cs = ax.contour(X, Y, U)
     ax.clabel(cs, inline=1, fontsize=12)
     ax.set_xlabel("x [-]")
     ax.set_ylabel("y [-]")
@@ -580,6 +596,6 @@ def plot_vorticity(N, E21, u_org, u0):
 
     cs = ax.contour(X, Y, vort.reshape(N + 1, N + 1))
 
-
+plot_contour(N, x, u, p, h)
 
 # TODO plot velocity at given x OR y
