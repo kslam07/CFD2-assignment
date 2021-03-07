@@ -3,6 +3,24 @@
 Created on Mon Dec 14 12:25:58 2020
 
 @author: mgerritsma
+
+The numbering of the mesh is done as follows:
+primal grid
+- counting starts at the left bottom corner
+- cells are first read from left to right, starting from the bottom to the top
+- boundary cells are counted at the end, i.e. start at second left bottom cell
+- fluxes / edges are counted starting from the most left bottom edge / flux
+- flux at boundaries are known of course
+- fluxes are counted in similar fashion: from bottom, left to right, to top
+- After counting all the horizontal fluxes / vertical edges, the counting
+  continues at the bottom left horizontal edge / vertical flux
+- Points counting is in a similar fashion; there are no points in the boundary
+  cells
+
+dual grid
+- Numbering of cells corresponds to number of points in primal grid
+- Numbering of edges corresponds to numbering of edges in primal grid
+- Numbering of points corresponds to numbering of cells in primal grid
 """
 
 from scipy.sparse import diags
@@ -20,7 +38,7 @@ mone = int(-1)
 
 L = float(1.0)
 Re = float(1000)  # Reynolds number
-N = int(3)  # mesh cells in x- and y-direction
+N = int(31)  # mesh cells in x- and y-direction
 
 u = np.zeros([2 * N * (N + 1), 1], dtype=np.float)
 p = np.zeros([N * N + 4 * N, 1], dtype=np.float)
@@ -208,11 +226,11 @@ def setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right, h):
     # top boundary cells
     jv = idx_max_edges - 1
     jh = idx_start_vert_edge - 2  # skipping upper right corner
-    for i in range(idx_max_circ - 1, idx_max_circ - N, -1):
+    for i_rhs, i in enumerate(range(idx_max_circ - 1, idx_max_circ - N, -1)):
         cols.extend([jv, jv - 1, jh])
         rows.extend([i - 1] * 3)  # -1 due to Python
         data.extend([1, -1, 1])
-        rhs[rows[-1]] = U_wall_top * h[1]
+        rhs[rows[-1]] = U_wall_top * h[i_rhs+1]
         jv -= 1
         jh -= 1
 
@@ -397,16 +415,6 @@ def Et21_rhs_mat(N):
             idx_edge += 1
             rhs[idx][idx_edge] = sign
     return rhs
-
-
-# tE21 = setup_tE21(N)
-# tE10 = setup_tE10(N)
-# E10 = setup_E10(N)
-# E21, u_pres = setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right, h)
-# Ht11 = setup_Ht11(N, th, h)
-# H1t1 = setup_H1t1(Ht11)
-# Ht02 = setup_Ht02(N, h)
-# u_norm = Et21_rhs_mat(N) @ np.zeros((get_idx_edges_boundary(N), 1))
 
 tE21 = setup_tE21(N)
 E21, u_pres = setup_E21(N, U_wall_top, U_wall_bot, V_wall_left, V_wall_right, h)
