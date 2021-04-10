@@ -38,10 +38,10 @@ mone = int(-1)
 
 L = float(1.0)
 Re = float(1000)  # Reynolds number
-N = int(31)  # mesh cells in x- and y-direction
+N = int(16)  # mesh cells in x- and y-direction
 
-u = np.zeros([2 * N * (N + 1), 1], dtype=np.float)
-p = np.zeros([N * N + 4 * N, 1], dtype=np.float)
+u = np.zeros([2 * N * (N + 1), 1], dtype=np.float)  # circulation
+p = np.zeros([N * N + 4 * N, 1], dtype=np.float)  # total pressure
 tx = np.zeros([N + 1, 1], dtype=np.float)  # grid points on primal grid edges
 x = np.zeros([N + 2, 1], dtype=np.float)  # grid points on dual grid sink/src
 th = np.zeros([N], dtype=np.float)  # mesh width primal grid
@@ -86,7 +86,6 @@ V_wall_left = 0
 V_wall_right = 0
 
 
-# TODO: Set up the sparse incidence matrix tE21. Use the orientations described
 def get_idx_source(N):
     return N ** 2 + 4 * N
 
@@ -108,7 +107,7 @@ def get_idx_edges_boundary(N):
 # in the assignment.
 # Make sure to use sparse matrices to avoid memory problems
 
-# TODO: Insert the normal boundary conditions and split of the vector u_norm
+
 # RHS vector
 def setup_tE10(N):
     N_edges = 2 * (N + 1) * N
@@ -556,7 +555,7 @@ def compute_pstat(N, p_org, u_org, h_org):
 
     return p
 
-# TODO plot pressure field
+
 def plot_contour(N, x, u_org, p_org, h):
     p = compute_pstat(N, p_org, u_org, h)
     # internal grid
@@ -576,7 +575,7 @@ def plot_streamfunction(N, u, x, h):
     xdat = [hi / 2 + float(x[i]) for i, hi in enumerate(h) if i != 0]
     xdat.insert(0, h[0] / 2)
 
-    X, Y = np.meshgrid(xdat, xdat)
+    X, Y = np.meshgrid(tx, tx)
     U = u[:N**2].reshape(N, N)
 
     fig, ax = plt.subplots(1, 1, dpi=150)
@@ -589,21 +588,20 @@ def plot_streamfunction(N, u, x, h):
 
 # TODO plot vorticity field
 
-def plot_vorticity(N, E21, u_org, u0):
+def plot_vorticity(N, Ht02, E21, u_org, u0):
 
     u = u_org.copy()
     # compute grid
-    xdat = [hi / 2 + float(x[i]) for i, hi in enumerate(h) if i != 0]
-    xdat.insert(0, h[0] / 2)
-    X, Y = np.meshgrid(xdat, xdat)
+    X, Y = np.meshgrid(tx, tx)
     # compute vorticity
-    vort = E21 @ u + u0
+    vort = Ht02 @ E21 @ u + Ht02 @ u0
 
     # plot vorticity
     fig, ax = plt.subplots(1, 1, dpi=150)
-
-    cs = ax.contour(X, Y, vort.reshape(N + 1, N + 1))
+    levels = [5.0, 4.0, 3.0, 2.0, 1.0, 0.5, 0.0, -0.5, -1.0, -2.0, -3.0][::-1]
+    cs = ax.contour(X, Y, vort.reshape(N + 1, N + 1), levels=levels)
 
 plot_contour(N, x, u, p, h)
+plot_vorticity(N, Ht02, E21, u, u_pres_vort)
 
 # TODO plot velocity at given x OR y
