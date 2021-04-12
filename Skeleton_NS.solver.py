@@ -526,7 +526,6 @@ def test_E10(E10, tE21):
     return np.allclose(-E10.T, tE21)
 
 
-# TODO plot stream functions
 def compute_pstat(N, p_org, u_org, h_org):
     idx_edges = get_idx_edge(N)
 
@@ -570,23 +569,20 @@ def plot_contour(N, x, u_org, p_org, h):
     return fig, ax
 
 
-def plot_streamfunction(N, u, x, h):
+def plot_streamfunction(N, u, x):
+    X, Y = np.meshgrid(x, x)
 
-    xdat = [hi / 2 + float(x[i]) for i, hi in enumerate(h) if i != 0]
-    xdat.insert(0, h[0] / 2)
-
-    X, Y = np.meshgrid(tx, tx)
-    U = u[:N**2].reshape(N, N)
-
+    phi = sparse.linalg.lsqr(tE10, tu)[0].reshape(N + 1, N + 1)
+    # -1.5e-3, -1e-3, -5e-4, -2.5e-4, -1e-4, -5e-5, -1e-5, -1e-6,
+    lvls = [-1.5e-3, -1e-3, -5e-4, -2.5e-4, -1e-4, -5e-5, -1e-5, -1e-6, 0.0, 1e-10, 1e-5, 1e-4, 1e-2, 3e-2, 5e-2, 7e-2,
+            9e-2, 0.1, 0.11, 0.115, 0.1175]
+    # lvls = [0.115, 0.1175]
     fig, ax = plt.subplots(1, 1, dpi=150)
-    cs = ax.contour(X, Y, U)
+    cs = ax.contour(X, Y, phi[::-1], levels=lvls)
     ax.clabel(cs, inline=1, fontsize=12)
     ax.set_xlabel("x [-]")
     ax.set_ylabel("y [-]")
 
-    return
-
-# TODO plot vorticity field
 
 def plot_vorticity(N, Ht02, E21, u_org, u0):
 
@@ -594,7 +590,7 @@ def plot_vorticity(N, Ht02, E21, u_org, u0):
     # compute grid
     X, Y = np.meshgrid(tx, tx)
     # compute vorticity
-    vort = Ht02 @ E21 @ u + Ht02 @ u0
+    vort = Ht02 @ E21 @ u + u0
 
     # plot vorticity
     fig, ax = plt.subplots(1, 1, dpi=150)
@@ -603,5 +599,5 @@ def plot_vorticity(N, Ht02, E21, u_org, u0):
 
 plot_contour(N, x, u, p, h)
 plot_vorticity(N, Ht02, E21, u, u_pres_vort)
-
+plot_streamfunction(N, u, tx)
 # TODO plot velocity at given x OR y
